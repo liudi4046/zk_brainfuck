@@ -2,18 +2,24 @@ use std::env::consts;
 
 use halo2_proofs::{
     arithmetic::Field,
+    circuit::Value,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Expression, Selector},
     poly::Rotation,
 };
-use vm::interpreter::{ADD, GETCHAR, LB, PUTCHAR, RB, SHL, SHR, SUB};
-struct MemoryTableConfig {
-    clk: Column<Advice>,
-    mp: Column<Advice>,
-    mv: Column<Advice>,
-    s_m: Selector,
+use vm::{
+    interpreter::{ADD, GETCHAR, LB, PUTCHAR, RB, SHL, SHR, SUB},
+    table::Tables,
+};
+#[derive(Clone)]
+
+pub struct MemoryTableConfig {
+    pub clk: Column<Advice>,
+    pub mp: Column<Advice>,
+    pub mv: Column<Advice>,
+    pub s_m: Selector,
 }
-struct MemoryTableChip {
+pub struct MemoryTableChip {
     config: MemoryTableConfig,
 }
 impl MemoryTableChip {
@@ -50,8 +56,46 @@ impl MemoryTableChip {
                 s_m_cell * constraint_m2,
             ]
         });
-        meta.loo
+        // meta.lookup_any("constraints: memory table is permutation of processor table", |meta|{
+        //     let
+        // })
 
         MemoryTableConfig { clk, mp, mv, s_m }
+    }
+    pub fn assign(
+        &self,
+        mut layouter: impl halo2_proofs::circuit::Layouter<Fr>,
+        tables: &Tables,
+    ) -> Result<(), halo2_proofs::plonk::ErrorFront> {
+        layouter.assign_region(
+            || "memory table",
+            |mut region| {
+                for (offset, row) in tables.processor_table.iter().enumerate() {
+                    region.assign_advice(
+                        || "clk",
+                        self.config.clk,
+                        offset,
+                        || Value::known(Fr::from(row.clk)),
+                    )?;
+                    region.assign_advice(
+                        || "mp",
+                        self.config.mp,
+                        offset,
+                        || Value::known(Fr::from(row.mp as u64)),
+                    )?;
+                    region.assign_advice(
+                        || "mv",
+                        self.config.mv,
+                        offset,
+                        || Value::known(row.mv),
+                    )?;
+                    if offset != tables.memory_table.len() - 1 {
+                        region.enable_selector(|| "s_m", &self.config.s_m, offset)?;
+                    }
+                }
+
+                Ok(())
+            },
+        )
     }
 }

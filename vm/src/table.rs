@@ -77,9 +77,11 @@ impl fmt::Debug for InstructionTableRow {
     }
 }
 pub struct InputTableRow {
+    pub clk: u64,
     pub value: Fr,
 }
 
 pub struct OutputTableRow {
+    pub clk: u64,
     pub value: Fr,
 }

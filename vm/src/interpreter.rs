@@ -70,17 +70,19 @@ impl Interpreter {
                 }
                 GETCHAR => {
                     let input_num = self.input.remove(0);
-                    self.tables
-                        .input_table
-                        .push(InputTableRow { value: input_num });
+                    self.tables.input_table.push(InputTableRow {
+                        clk: self.registers.clk,
+                        value: input_num,
+                    });
                     self.memory[self.registers.mp] = input_num;
                     self.registers.ip += 1;
                 }
                 PUTCHAR => {
                     let output_num = self.registers.mv;
-                    self.tables
-                        .output_table
-                        .push(OutputTableRow { value: output_num });
+                    self.tables.output_table.push(OutputTableRow {
+                        clk: self.registers.clk,
+                        value: output_num,
+                    });
                     self.registers.ip += 1;
                 }
                 LB => {

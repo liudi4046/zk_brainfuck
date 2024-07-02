@@ -1,24 +1,30 @@
 use halo2_proofs::{
     arithmetic::Field,
+    circuit::Value,
     halo2curves::bn256::Fr,
     plonk::{Advice, Column, ConstraintSystem, Expression, Selector},
     poly::Rotation,
 };
-use vm::interpreter::{ADD, GETCHAR, LB, PUTCHAR, RB, SHL, SHR, SUB};
-struct ProcessTableChip {
+use vm::{
+    interpreter::{ADD, GETCHAR, LB, PUTCHAR, RB, SHL, SHR, SUB},
+    table::Tables,
+};
+pub struct ProcessTableChip {
     config: ProcessorTableConfig,
 }
-struct ProcessorTableConfig {
-    clk: Column<Advice>,
-    ip: Column<Advice>,
-    ci: Column<Advice>,
-    ni: Column<Advice>,
-    mp: Column<Advice>,
-    mv: Column<Advice>,
-    mvi: Column<Advice>,
-    s_b: Selector,
-    s_c: Selector,
-    s_p: Selector,
+#[derive(Clone)]
+
+pub struct ProcessorTableConfig {
+    pub clk: Column<Advice>,
+    pub ip: Column<Advice>,
+    pub ci: Column<Advice>,
+    pub ni: Column<Advice>,
+    pub mp: Column<Advice>,
+    pub mv: Column<Advice>,
+    pub mvi: Column<Advice>,
+    pub s_b: Selector,
+    pub s_c: Selector,
+    pub s_p: Selector,
 }
 impl ProcessTableChip {
     pub fn construct(config: ProcessorTableConfig) -> Self {
@@ -155,6 +161,70 @@ impl ProcessTableChip {
             s_c,
             s_p,
         }
+    }
+    pub fn assign(
+        &self,
+        mut layouter: impl halo2_proofs::circuit::Layouter<Fr>,
+        tables: &Tables,
+    ) -> Result<(), halo2_proofs::plonk::ErrorFront> {
+        layouter.assign_region(
+            || "processor table",
+            |mut region| {
+                for (offset, row) in tables.processor_table.iter().enumerate() {
+                    region.assign_advice(
+                        || "clk",
+                        self.config.clk,
+                        offset,
+                        || Value::known(Fr::from(row.clk)),
+                    )?;
+                    region.assign_advice(
+                        || "ip",
+                        self.config.ip,
+                        offset,
+                        || Value::known(Fr::from(row.ip as u64)),
+                    )?;
+                    region.assign_advice(
+                        || "ci",
+                        self.config.ci,
+                        offset,
+                        || Value::known(Fr::from(row.ci as u64)),
+                    )?;
+                    region.assign_advice(
+                        || "ni",
+                        self.config.ni,
+                        offset,
+                        || Value::known(Fr::from(row.ni as u64)),
+                    )?;
+                    region.assign_advice(
+                        || "mp",
+                        self.config.mp,
+                        offset,
+                        || Value::known(Fr::from(row.mp as u64)),
+                    )?;
+                    region.assign_advice(
+                        || "mv",
+                        self.config.mv,
+                        offset,
+                        || Value::known(row.mv),
+                    )?;
+                    region.assign_advice(
+                        || "ip",
+                        self.config.ip,
+                        offset,
+                        || Value::known(Fr::from(row.ip as u64)),
+                    )?;
+                    if offset == 0 {
+                        region.enable_selector(|| "s_b", &self.config.s_b, offset)?;
+                    }
+                    region.enable_selector(|| "s_c", &self.config.s_c, offset)?;
+                    if offset != tables.processor_table.len() - 1 {
+                        region.enable_selector(|| "s_p", &self.config.s_p, offset)?;
+                    }
+                }
+
+                Ok(())
+            },
+        )
     }
 }
 fn create_deselector(instruction: u8, instructions: &[u8]) -> Expression<Fr> {
