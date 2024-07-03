@@ -4,7 +4,7 @@ use halo2_proofs::halo2curves::bn256::Fr;
 
 use crate::register::{self, Registers};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Tables {
     pub processor_table: Vec<ProcessTableRow>,
     pub memory_table: Vec<MemoryTableRow>,
@@ -46,7 +46,7 @@ impl From<Registers> for ProcessTableRow {
         }
     }
 }
-
+#[derive(Clone)]
 pub struct MemoryTableRow {
     pub clk: u64,
     pub mp: usize,
@@ -61,6 +61,7 @@ impl fmt::Debug for MemoryTableRow {
         )
     }
 }
+#[derive(Clone)]
 
 pub struct InstructionTableRow {
     pub ip: usize,
@@ -76,11 +77,12 @@ impl fmt::Debug for InstructionTableRow {
         )
     }
 }
+#[derive(Clone)]
 pub struct InputTableRow {
     pub clk: u64,
     pub value: Fr,
 }
-
+#[derive(Clone)]
 pub struct OutputTableRow {
     pub clk: u64,
     pub value: Fr,

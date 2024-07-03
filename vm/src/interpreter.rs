@@ -13,7 +13,7 @@ pub struct Interpreter {
     code: Vec<u8>,
     program: Vec<u8>,
     registers: Registers,
-    tables: Tables,
+    pub tables: Tables,
     memory: Vec<Fr>,
     input: Vec<Fr>,
     output: Vec<Fr>,

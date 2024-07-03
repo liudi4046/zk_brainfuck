@@ -112,3 +112,40 @@ impl Circuit<Fr> for BrainfuckCircuit {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use halo2_proofs::dev::MockProver;
+    use vm::interpreter::Interpreter;
+
+    use super::*;
+
+    #[test]
+    fn test_run() {
+        let code = vec![
+            ADD, ADD, SHR, GETCHAR, SHL, LB, SHR, ADD, PUTCHAR, SHL, SUB, RB,
+        ];
+        let input = vec![Fr::from(97)];
+        let mut interpreter = Interpreter::new(code, input);
+        interpreter.run();
+        let tables = interpreter.tables;
+        let circuit = BrainfuckCircuit {
+            tables: tables.clone(),
+        };
+        let input_val = tables
+            .clone()
+            .input_table
+            .iter()
+            .map(|v| v.value)
+            .collect::<Vec<Fr>>();
+        let output_val = tables
+            .clone()
+            .output_table
+            .iter()
+            .map(|v| v.value)
+            .collect::<Vec<Fr>>();
+        let prover = MockProver::run(9, &circuit, vec![output_val, input_val]).unwrap();
+        prover.assert_satisfied();
+    }
+}

@@ -1,6 +1,6 @@
 use std::env::consts;
 
-use gadgets::less_than::{LtChip, LtConfig, LtInstruction};
+use crate::gadgets::less_than::{LtChip, LtConfig};
 use halo2_proofs::{
     arithmetic::Field,
     circuit::Value,
@@ -18,6 +18,7 @@ use vm::{
 pub struct InputTableConfig {
     pub clk: Column<Advice>,
     pub value: Column<Instance>,
+    pub s: Selector,
 }
 pub struct InputTableChip {
     config: InputTableConfig,
@@ -29,16 +30,21 @@ impl InputTableChip {
     pub fn configure(meta: &mut ConstraintSystem<Fr>) -> InputTableConfig {
         let clk = meta.advice_column();
         let value = meta.instance_column();
-        let s = meta.complex_selector();
+        let s = meta.selector();
 
-        // let lt_config = LtChip::configure(
-        //     meta,
-        //     |cell| cell.query_selector(selector),
-        //     |cell| cell.query_advice(clk, Rotation::cur()),
-        //     |cell| cell.query_advice(clk, Rotation::next()),
-        // );
+        let lt_config: LtConfig<4> = LtChip::configure(
+            meta,
+            |cell| cell.query_selector(s),
+            |cell| cell.query_advice(clk, Rotation::cur()),
+            |cell| cell.query_advice(clk, Rotation::next()),
+        );
+        meta.create_gate("cur clk < next clk", |meta| {
+            let s = meta.query_selector(s);
+            let lt = meta.query_advice(lt_config.lt, Rotation::cur());
+            vec![s * (lt - Expression::Constant(Fr::one()))]
+        });
 
-        InputTableConfig { clk, value }
+        InputTableConfig { clk, value, s }
     }
     pub fn assign(
         &self,
@@ -55,6 +61,9 @@ impl InputTableChip {
                         offset,
                         || Value::known(Fr::from(row.clk)),
                     )?;
+                    if offset != tables.input_table.len() - 1 {
+                        region.enable_selector(|| "input selector", &self.config.s, offset)?;
+                    }
                 }
 
                 Ok(())
